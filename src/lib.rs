@@ -41,7 +41,7 @@ mod ffi {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
-pub fn inquiry(path: &Path) -> Sg3Result<()> {
+pub fn inquiry(path: &Path) -> Sg3Result<StdInquiry> {
 
     let f = try!(OpenOptions::new().read(true).open(path));
 
@@ -68,9 +68,7 @@ pub fn inquiry(path: &Path) -> Sg3Result<()> {
         return Err(Sg3Error::Nix(e));
     }
 
-    println!("after {}", inquiry.version());
-
-    Ok(())
+    Ok(inquiry)
 }
 
 pub struct StdInquiry {
