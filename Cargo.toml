@@ -1,0 +1,21 @@
+[package]
+name = "sg3"
+version = "0.1.0"
+authors = ["Andy Grover <agrover@redhat.com>"]
+description = "A library for getting information from Linux SCSI Generic (sg3)"
+documentation = "https://docs.rs/sg3/"
+# homepage = "..."
+repository = "https://github.com/agrover/sg3-rs"
+readme = "README.md"
+keywords = ["Linux", "SCSI", "storage"]
+license = "MIT"
+
+build = "build.rs"
+
+[build-dependencies]
+bindgen = "0"
+
+[dependencies]
+nix = "0"
+
+
