@@ -17,5 +17,5 @@ bindgen = "0"
 
 [dependencies]
 nix = "0"
-
+byteorder = "1"
 
