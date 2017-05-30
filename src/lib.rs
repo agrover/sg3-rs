@@ -1,10 +1,23 @@
-#![allow(dead_code)]
+//! SCSI Commands using the Linux SCSI Generic (sg3) driver
+//!
+//! # Overview
+//!
+//! The Linux sg driver interface allows userspace to craft and send
+//! SCSI commands to SCSI devices present on the system.
+//!
+//! More information can be found [here](http://sg.danny.cz/sg/p/sg_v3_ho.html).
+//!
+//! Currently, this library does not expose the full capabilities of
+//! the interface, but just handles a few commands that were
+//! immediately of interest to the author -- calling and parsing
+//! various types of INQUIRY. If other capabilities are desired, it
+//! should be possible to add support beyond this with relative ease.
+
 #[macro_use]
 extern crate nix;
 extern crate byteorder;
 #[macro_use]
 extern crate nom;
-
 
 use std::io;
 use std::fs::OpenOptions;
@@ -109,14 +122,6 @@ pub enum Association {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-enum CodeSet {
-    Reserved,
-    Binary,
-    Ascii,
-    Utf8,
-}
-
-#[derive(Debug, PartialEq, Eq)]
 pub enum DesignatorType {
     VS,
     T10VendorId,
@@ -131,29 +136,7 @@ pub enum DesignatorType {
     Reserved,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum EuiDesignatorFormat {
-    Eui64,
-    Eui64Bytes12,
-    Eui64Bytes16,
-    Reserved,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-enum NaaType {
-    IeeeExtended,
-    LocallyAssigned,
-    IeeeRegistered,
-    IeeeRegisteredExtended,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-enum ProtocolSpecificType {
-    UsbTargetPort,
-    PciExpressRoutingId,
-    Reserved,
-}
-
+// Send SCSI INQUIRY command to the SCSI device at the given path.
 pub fn inquiry(path: &Path) -> Sg3Result<StdInquiry> {
 
     let f = try!(OpenOptions::new().read(true).open(path));
@@ -297,7 +280,7 @@ impl StdInquiry {
     }
 }
 
-pub fn inquiry_vpd(path: &Path, vpd: u8, buf: &mut [u8]) -> Sg3Result<()> {
+fn inquiry_vpd(path: &Path, vpd: u8, buf: &mut [u8]) -> Sg3Result<()> {
 
     let f = try!(OpenOptions::new().read(true).open(path));
 
@@ -361,6 +344,8 @@ impl InquiryVpd80 {
     }
 }
 
+// Send SCSI INQUIRY for VPD 80 (Unit Serial Number) to the SCSI
+// device at the given path.
 pub fn inquiry_vpd_80(path: &Path) -> Sg3Result<InquiryVpd80> {
     let mut inquiry = InquiryVpd80::new();
     try!(inquiry_vpd(path, 0x80, inquiry.as_mut_buf()));
@@ -386,16 +371,6 @@ fn to_protocol(ident: u8, assoc: Association, piv: u8) -> ProtocolIdentifier {
         0xa => ProtocolIdentifier::Sop,
         0xb...0xe => ProtocolIdentifier::Reserved,
         _ => ProtocolIdentifier::Unspecified,
-    }
-}
-
-fn to_codeset(i: u8) -> CodeSet {
-    match i {
-        0 => CodeSet::Reserved,
-        1 => CodeSet::Binary,
-        2 => CodeSet::Ascii,
-        3 => CodeSet::Utf8,
-        _ => CodeSet::Reserved,
     }
 }
 
@@ -525,6 +500,7 @@ fn to_device_type(i: u8) -> PeripheralDeviceType {
         _ => PeripheralDeviceType::Reserved,
     }
 }
+
 named!(vpd83<InquiryVpd83>, dbg_dmp!(do_parse!(
     per: periph >>
     tag!( &[ 0x83u8 ][..] ) >>
@@ -536,6 +512,8 @@ named!(vpd83<InquiryVpd83>, dbg_dmp!(do_parse!(
     })
 )));
 
+// Send SCSI INQUIRY for VPD 83 (Device Identification) to the SCSI
+// device at the given path.
 pub fn inquiry_vpd_83(path: &Path) -> Sg3Result<InquiryVpd83> {
     let mut inquiry = [0u8; 1024];
     try!(inquiry_vpd(path, 0x83, &mut inquiry));
