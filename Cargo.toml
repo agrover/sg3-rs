@@ -1,6 +1,6 @@
 [package]
 name = "sg3"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Andy Grover <agrover@redhat.com>"]
 description = "A library for getting information from Linux SCSI Generic (sg3)"
 documentation = "https://docs.rs/sg3/"
