@@ -19,8 +19,10 @@ extern crate byteorder;
 #[macro_use]
 extern crate nom;
 
+use std::error;
 use std::io;
 use std::fs::OpenOptions;
+use std::fmt;
 use std::path::Path;
 use std::os::raw::c_void;
 use std::os::unix::io::AsRawFd;
@@ -56,6 +58,27 @@ impl From<nom::ErrorKind> for Sg3Error {
         Sg3Error::Nom(err)
     }
 }
+
+impl fmt::Display for Sg3Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Sg3Error::Io(ref err) => write!(f, "IO error: {}", err),
+            Sg3Error::Nix(ref err) => write!(f, "Nix error: {}", err.errno().desc()),
+            Sg3Error::Nom(ref err) => write!(f, "Nom error: {}", err),
+        }
+    }
+}
+
+impl error::Error for Sg3Error {
+    fn description(&self) -> &str {
+        match *self {
+            Sg3Error::Io(ref err) => err.description(),
+            Sg3Error::Nix(ref err) => err.errno().desc(),
+            Sg3Error::Nom(ref err) => err.description(),
+        }
+    }
+}
+
 
 mod ffi {
     #![allow(non_upper_case_globals)]
