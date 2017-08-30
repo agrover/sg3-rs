@@ -29,7 +29,7 @@ use std::os::unix::io::AsRawFd;
 use std::str::from_utf8;
 
 use byteorder::{ByteOrder, BigEndian};
-use nix::sys::ioctl::ioctl as nix_ioctl;
+use nix::libc::ioctl as nix_ioctl;
 use nom::{be_u8, be_u16};
 
 #[derive(Debug)]
