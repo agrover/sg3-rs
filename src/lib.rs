@@ -63,7 +63,7 @@ impl fmt::Display for Sg3Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Sg3Error::Io(ref err) => write!(f, "IO error: {}", err),
-            Sg3Error::Nix(ref err) => write!(f, "Nix error: {}", err.errno().desc()),
+            Sg3Error::Nix(ref err) => write!(f, "Nix error: {}", err),
             Sg3Error::Nom(ref err) => write!(f, "Nom error: {}", err),
         }
     }
@@ -73,7 +73,7 @@ impl error::Error for Sg3Error {
     fn description(&self) -> &str {
         match *self {
             Sg3Error::Io(ref err) => err.description(),
-            Sg3Error::Nix(ref err) => err.errno().desc(),
+            Sg3Error::Nix(ref err) => err.description(),
             Sg3Error::Nom(ref err) => err.description(),
         }
     }
