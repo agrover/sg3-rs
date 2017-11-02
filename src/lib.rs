@@ -36,7 +36,6 @@ use nom::{be_u8, be_u16};
 pub enum Sg3Error {
     Nix(nix::Error),
     Io(io::Error),
-    Nom(nom::ErrorKind),
 }
 
 pub type Sg3Result<T> = Result<T, Sg3Error>;
@@ -53,18 +52,11 @@ impl From<nix::Error> for Sg3Error {
     }
 }
 
-impl From<nom::ErrorKind> for Sg3Error {
-    fn from(err: nom::ErrorKind) -> Sg3Error {
-        Sg3Error::Nom(err)
-    }
-}
-
 impl fmt::Display for Sg3Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Sg3Error::Io(ref err) => write!(f, "IO error: {}", err),
             Sg3Error::Nix(ref err) => write!(f, "Nix error: {}", err),
-            Sg3Error::Nom(ref err) => write!(f, "Nom error: {}", err),
         }
     }
 }
@@ -74,7 +66,6 @@ impl error::Error for Sg3Error {
         match *self {
             Sg3Error::Io(ref err) => err.description(),
             Sg3Error::Nix(ref err) => err.description(),
-            Sg3Error::Nom(ref err) => err.description(),
         }
     }
 }
@@ -162,7 +153,7 @@ pub enum DesignatorType {
 // Send SCSI INQUIRY command to the SCSI device at the given path.
 pub fn inquiry(path: &Path) -> Sg3Result<StdInquiry> {
 
-    let f = try!(OpenOptions::new().read(true).open(path));
+    let f = OpenOptions::new().read(true).open(path)?;
 
     let mut sgbuf: ffi::sg_io_hdr = Default::default();
     let mut sb = [0u8; 64];
@@ -305,7 +296,7 @@ impl StdInquiry {
 
 fn inquiry_vpd(path: &Path, vpd: u8, buf: &mut [u8]) -> Sg3Result<()> {
 
-    let f = try!(OpenOptions::new().read(true).open(path));
+    let f = OpenOptions::new().read(true).open(path)?;
 
     let mut sgbuf: ffi::sg_io_hdr = Default::default();
     let mut sb = [0u8; 64];
@@ -371,7 +362,7 @@ impl InquiryVpd80 {
 // device at the given path.
 pub fn inquiry_vpd_80(path: &Path) -> Sg3Result<InquiryVpd80> {
     let mut inquiry = InquiryVpd80::new();
-    try!(inquiry_vpd(path, 0x80, inquiry.as_mut_buf()));
+    inquiry_vpd(path, 0x80, inquiry.as_mut_buf())?;
     Ok(inquiry)
 }
 
@@ -539,8 +530,10 @@ named!(vpd83<InquiryVpd83>, dbg_dmp!(do_parse!(
 // device at the given path.
 pub fn inquiry_vpd_83(path: &Path) -> Sg3Result<InquiryVpd83> {
     let mut inquiry = [0u8; 1024];
-    try!(inquiry_vpd(path, 0x83, &mut inquiry));
-    let res = try!(vpd83(&inquiry).to_result());
+    inquiry_vpd(path, 0x83, &mut inquiry)?;
+    let res = vpd83(&inquiry)
+        .to_result()
+        .map_err(|_| io::Error::new(io::ErrorKind::Other, "nom parse error"))?;
     Ok(res)
 }
 

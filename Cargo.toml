@@ -18,5 +18,5 @@ bindgen = "0"
 [dependencies]
 nix = "0"
 byteorder = "1"
-nom = "3"
+nom = "3.2"
 
