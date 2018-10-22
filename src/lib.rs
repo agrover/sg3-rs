@@ -20,17 +20,17 @@ extern crate byteorder;
 extern crate nom;
 
 use std::error;
-use std::io;
-use std::fs::OpenOptions;
 use std::fmt;
-use std::path::Path;
+use std::fs::OpenOptions;
+use std::io;
 use std::os::raw::c_void;
 use std::os::unix::io::AsRawFd;
+use std::path::Path;
 use std::str::from_utf8;
 
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{BigEndian, ByteOrder};
 use nix::libc::ioctl as nix_ioctl;
-use nom::{be_u8, be_u16};
+use nom::{be_u16, be_u8};
 
 #[derive(Debug)]
 pub enum Sg3Error {
@@ -69,7 +69,6 @@ impl error::Error for Sg3Error {
         }
     }
 }
-
 
 mod ffi {
     #![allow(non_upper_case_globals)]
@@ -152,7 +151,6 @@ pub enum DesignatorType {
 
 // Send SCSI INQUIRY command to the SCSI device at the given path.
 pub fn inquiry(path: &Path) -> Sg3Result<StdInquiry> {
-
     let f = OpenOptions::new().read(true).open(path)?;
 
     let mut sgbuf: ffi::sg_io_hdr = Default::default();
@@ -172,15 +170,17 @@ pub fn inquiry(path: &Path) -> Sg3Result<StdInquiry> {
     sgbuf.cmdp = cmd.as_mut_ptr();
     sgbuf.sbp = sb.as_mut_ptr();
 
-    if let Err(e) = unsafe {
-           convert_ioctl_res!(nix_ioctl(f.as_raw_fd(), ffi::SG_IO as u64, &sgbuf))
-       } {
+    if let Err(e) =
+        unsafe { convert_ioctl_res!(nix_ioctl(f.as_raw_fd(), ffi::SG_IO as u64, &sgbuf)) }
+    {
         return Err(Sg3Error::Nix(e));
     }
 
     if inquiry.response_data_format() != 2 {
-        return Err(Sg3Error::Io(io::Error::new(io::ErrorKind::Other,
-                                               "Unknown/unsupported response data format")));
+        return Err(Sg3Error::Io(io::Error::new(
+            io::ErrorKind::Other,
+            "Unknown/unsupported response data format",
+        )));
     }
 
     Ok(inquiry)
@@ -295,7 +295,6 @@ impl StdInquiry {
 }
 
 fn inquiry_vpd(path: &Path, vpd: u8, buf: &mut [u8]) -> Sg3Result<()> {
-
     let f = OpenOptions::new().read(true).open(path)?;
 
     let mut sgbuf: ffi::sg_io_hdr = Default::default();
@@ -316,9 +315,9 @@ fn inquiry_vpd(path: &Path, vpd: u8, buf: &mut [u8]) -> Sg3Result<()> {
     sgbuf.cmdp = cmd.as_mut_ptr();
     sgbuf.sbp = sb.as_mut_ptr();
 
-    if let Err(e) = unsafe {
-           convert_ioctl_res!(nix_ioctl(f.as_raw_fd(), ffi::SG_IO as u64, &sgbuf))
-       } {
+    if let Err(e) =
+        unsafe { convert_ioctl_res!(nix_ioctl(f.as_raw_fd(), ffi::SG_IO as u64, &sgbuf)) }
+    {
         return Err(Sg3Error::Nix(e));
     }
 
@@ -446,31 +445,38 @@ pub struct DesignationDescriptor {
     pub designator: Designator,
 }
 
-named!( dd_byte0<(u8, u8)>, bits!( pair!( take_bits!( u8, 4 ), take_bits!(u8, 4) ) ) );
-named!( dd_byte1<(u8, u8, u8, u8)>, bits!( tuple!(
-    take_bits!(u8, 1),
-    take_bits!(u8, 1),
-    take_bits!(u8, 2),
-    take_bits!(u8, 4)
-) ) );
+named!(
+    dd_byte0<(u8, u8)>,
+    bits!(pair!(take_bits!(u8, 4), take_bits!(u8, 4)))
+);
+named!(
+    dd_byte1<(u8, u8, u8, u8)>,
+    bits!(tuple!(
+        take_bits!(u8, 1),
+        take_bits!(u8, 1),
+        take_bits!(u8, 2),
+        take_bits!(u8, 4)
+    ))
+);
 
-named!(des_desc<DesignationDescriptor>,
-       dbg_dmp!(
-       do_parse!(
-       byte0: dd_byte0 >>
-       byte1: dd_byte1 >>
-       take!(1) >>
-       length: be_u8 >>
-       designator: take!(length) >>
-       (DesignationDescriptor {
-           protocol: to_protocol(byte0.0, to_association(byte1.2), byte1.0),
-           association: to_association(byte1.2),
-           designator_type: to_designator_type(byte1.3),
-           designator: to_designator(byte0.1, designator),
-      })
-)));
+named!(
+    des_desc<DesignationDescriptor>,
+    dbg_dmp!(do_parse!(
+        byte0: dd_byte0
+            >> byte1: dd_byte1
+            >> take!(1)
+            >> length: be_u8
+            >> designator: take!(length)
+            >> (DesignationDescriptor {
+                protocol: to_protocol(byte0.0, to_association(byte1.2), byte1.0),
+                association: to_association(byte1.2),
+                designator_type: to_designator_type(byte1.3),
+                designator: to_designator(byte0.1, designator),
+            })
+    ))
+);
 
-named!(des_descs<Vec<DesignationDescriptor> >, many0!(des_desc));
+named!(des_descs<Vec<DesignationDescriptor>>, many0!(des_desc));
 
 #[derive(Debug)]
 pub struct InquiryVpd83 {
@@ -479,7 +485,10 @@ pub struct InquiryVpd83 {
     pub descriptors: Vec<DesignationDescriptor>,
 }
 
-named!(periph<(u8, u8)>, bits!( pair!( take_bits!( u8, 3 ), take_bits!(u8, 5) ) ) );
+named!(
+    periph<(u8, u8)>,
+    bits!(pair!(take_bits!(u8, 3), take_bits!(u8, 5)))
+);
 
 fn to_qualifier(i: u8) -> PeripheralQualifier {
     match i {
@@ -515,16 +524,19 @@ fn to_device_type(i: u8) -> PeripheralDeviceType {
     }
 }
 
-named!(vpd83<InquiryVpd83>, dbg_dmp!(do_parse!(
-    per: periph >>
-    tag!( &[ 0x83u8 ][..] ) >>
-    descs: length_value!(be_u16, des_descs) >>
-    (InquiryVpd83 {
-        qualifier: to_qualifier(per.0),
-        device_type: to_device_type(per.1),
-        descriptors: descs,
-    })
-)));
+named!(
+    vpd83<InquiryVpd83>,
+    dbg_dmp!(do_parse!(
+        per: periph
+            >> tag!(&[0x83u8][..])
+            >> descs: length_value!(be_u16, des_descs)
+            >> (InquiryVpd83 {
+                qualifier: to_qualifier(per.0),
+                device_type: to_device_type(per.1),
+                descriptors: descs,
+            })
+    ))
+);
 
 // Send SCSI INQUIRY for VPD 83 (Device Identification) to the SCSI
 // device at the given path.
