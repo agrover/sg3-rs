@@ -382,7 +382,7 @@ fn to_protocol(ident: u8, assoc: Association, piv: u8) -> ProtocolIdentifier {
         8 => ProtocolIdentifier::Acs,
         9 => ProtocolIdentifier::Uas,
         0xa => ProtocolIdentifier::Sop,
-        0xb...0xe => ProtocolIdentifier::Reserved,
+        0xb..=0xe => ProtocolIdentifier::Reserved,
         _ => ProtocolIdentifier::Unspecified,
     }
 }
@@ -431,8 +431,8 @@ pub enum Designator {
 
 fn to_designator(code: u8, data: &[u8]) -> Designator {
     match code {
-        0...1 => Designator::Binary(Vec::from(data)),
-        2...3 => Designator::String(String::from_utf8_lossy(slice_to_null(data)).into_owned()),
+        0..=1 => Designator::Binary(Vec::from(data)),
+        2..=3 => Designator::String(String::from_utf8_lossy(slice_to_null(data)).into_owned()),
         _ => Designator::Binary(Vec::from(data)),
     }
 }
@@ -496,7 +496,7 @@ fn to_qualifier(i: u8) -> PeripheralQualifier {
         1 => PeripheralQualifier::NotConnected,
         2 => PeripheralQualifier::Reserved,
         3 => PeripheralQualifier::NotCapable,
-        4...7 => PeripheralQualifier::VS,
+        4..=7 => PeripheralQualifier::VS,
         _ => PeripheralQualifier::Reserved,
     }
 }
@@ -512,7 +512,7 @@ fn to_device_type(i: u8) -> PeripheralDeviceType {
         6 => PeripheralDeviceType::Obsolete,
         7 => PeripheralDeviceType::OpticalMemory,
         8 => PeripheralDeviceType::MediaChanger,
-        0x9...0xb => PeripheralDeviceType::Obsolete,
+        0x9..=0xb => PeripheralDeviceType::Obsolete,
         0xc => PeripheralDeviceType::StorageArrayController,
         0xd => PeripheralDeviceType::EnclosureServices,
         0xe => PeripheralDeviceType::SimplifiedDirectAccess,

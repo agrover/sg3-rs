@@ -9,6 +9,7 @@ repository = "https://github.com/agrover/sg3-rs"
 readme = "README.md"
 keywords = ["Linux", "SCSI", "storage"]
 license = "MIT"
+edition = "2018"
 
 build = "build.rs"
 
