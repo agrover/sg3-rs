@@ -10,6 +10,6 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Build
-      run: cargo build --verbose
+      run: sudo /usr/share/rust/.cargo/bin/cargo build --verbose
     - name: Run tests
-      run: cargo test --verbose
+      run: sudo /usr/share/rust/.cargo/bin/cargo test --verbose
