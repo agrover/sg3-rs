@@ -9,6 +9,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+    - name: Module Install
+      run: sudo modprobe scsi_debug
+    - name: Get info
+      run: lsblk
     - name: Build
       run: cargo build --verbose
     - name: Run tests
