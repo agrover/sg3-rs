@@ -16,8 +16,6 @@
 #[macro_use]
 extern crate nix;
 extern crate byteorder;
-#[macro_use]
-extern crate nom;
 
 use std::error;
 use std::fmt;
@@ -30,7 +28,10 @@ use std::str::from_utf8;
 
 use byteorder::{BigEndian, ByteOrder};
 use nix::libc::ioctl as nix_ioctl;
-use nom::{be_u16, be_u8};
+use nom::bytes::complete::{take, tag};
+use nom::multi::many0;
+use nom::number::complete::{be_u8, be_u16};
+use nom::{IResult, Parser};
 
 #[derive(Debug)]
 pub enum Sg3Error {
@@ -439,38 +440,33 @@ pub struct DesignationDescriptor {
     pub designator: Designator,
 }
 
-named!(
-    dd_byte0<(u8, u8)>,
-    bits!(pair!(take_bits!(u8, 4), take_bits!(u8, 4)))
-);
-named!(
-    dd_byte1<(u8, u8, u8, u8)>,
-    bits!(tuple!(
-        take_bits!(u8, 1),
-        take_bits!(u8, 1),
-        take_bits!(u8, 2),
-        take_bits!(u8, 4)
-    ))
-);
+fn dd_byte0(i: &[u8]) -> IResult<&[u8], (u8, u8)> {
+    let (rest, b) = be_u8(i)?;
+    Ok((rest, ((b >> 4) & 0x0f, b & 0x0f)))
+}
 
-named!(
-    des_desc<DesignationDescriptor>,
-    dbg_dmp!(do_parse!(
-        byte0: dd_byte0
-            >> byte1: dd_byte1
-            >> take!(1)
-            >> length: be_u8
-            >> designator: take!(length)
-            >> (DesignationDescriptor {
-                protocol: to_protocol(byte0.0, to_association(byte1.2), byte1.0),
-                association: to_association(byte1.2),
-                designator_type: to_designator_type(byte1.3),
-                designator: to_designator(byte0.1, designator),
-            })
-    ))
-);
+fn dd_byte1(i: &[u8]) -> IResult<&[u8], (u8, u8, u8, u8)> {
+    let (rest, b) = be_u8(i)?;
+    Ok((rest, ((b >> 7) & 0x1, (b >> 6) & 0x1, (b >> 4) & 0x3, b & 0x0f)))
+}
 
-named!(des_descs<Vec<DesignationDescriptor>>, many0!(des_desc));
+fn des_desc(i: &[u8]) -> IResult<&[u8], DesignationDescriptor> {
+    let (rest, byte0) = dd_byte0(i)?;
+    let (rest, byte1) = dd_byte1(rest)?;
+    let (rest, _reserved) = take(1usize)(rest)?;
+    let (rest, length) = be_u8(rest)?;
+    let (rest, designator) = take(length as usize)(rest)?;
+    Ok((
+        rest,
+        DesignationDescriptor {
+            protocol: to_protocol(byte0.0, to_association(byte1.2), byte1.0),
+            association: to_association(byte1.2),
+            designator_type: to_designator_type(byte1.3),
+            designator: to_designator(byte0.1, designator),
+        },
+    ))
+}
+
 
 #[derive(Debug)]
 pub struct InquiryVpd83 {
@@ -479,10 +475,10 @@ pub struct InquiryVpd83 {
     pub descriptors: Vec<DesignationDescriptor>,
 }
 
-named!(
-    periph<(u8, u8)>,
-    bits!(pair!(take_bits!(u8, 3), take_bits!(u8, 5)))
-);
+fn periph(i: &[u8]) -> IResult<&[u8], (u8, u8)> {
+    let (rest, b) = be_u8(i)?;
+    Ok((rest, ((b >> 5) & 0x7, b & 0x1f)))
+}
 
 fn to_qualifier(i: u8) -> PeripheralQualifier {
     match i {
@@ -518,28 +514,29 @@ fn to_device_type(i: u8) -> PeripheralDeviceType {
     }
 }
 
-named!(
-    vpd83<InquiryVpd83>,
-    dbg_dmp!(do_parse!(
-        per: periph
-            >> tag!(&[0x83u8][..])
-            >> descs: length_value!(be_u16, des_descs)
-            >> (InquiryVpd83 {
-                qualifier: to_qualifier(per.0),
-                device_type: to_device_type(per.1),
-                descriptors: descs,
-            })
+fn vpd83(i: &[u8]) -> IResult<&[u8], InquiryVpd83> {
+    let (rest, per) = periph(i)?;
+    let (rest, _tag) = tag(&[0x83u8][..])(rest)?;
+    let (rest, len) = be_u16(rest)?;
+    let (rest, data) = take(len as usize)(rest)?;
+    let (_, descs) = many0(des_desc).parse(data)?;
+    Ok((
+        rest,
+        InquiryVpd83 {
+            qualifier: to_qualifier(per.0),
+            device_type: to_device_type(per.1),
+            descriptors: descs,
+        },
     ))
-);
+}
 
 // Send SCSI INQUIRY for VPD 83 (Device Identification) to the SCSI
 // device at the given path.
 pub fn inquiry_vpd_83(path: &Path) -> Sg3Result<InquiryVpd83> {
     let mut inquiry = [0u8; 1024];
     inquiry_vpd(path, 0x83, &mut inquiry)?;
-    let res = vpd83(&inquiry)
-        .to_result()
-        .map_err(|_| io::Error::other("nom parse error"))?;
+    let (_, res) = vpd83(&inquiry)
+        .map_err(|e| io::Error::other(format!("nom parse error: {}", e)))?;
     Ok(res)
 }
 
