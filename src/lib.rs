@@ -61,14 +61,7 @@ impl fmt::Display for Sg3Error {
     }
 }
 
-impl error::Error for Sg3Error {
-    fn description(&self) -> &str {
-        match *self {
-            Sg3Error::Io(ref err) => err.description(),
-            Sg3Error::Nix(ref err) => err.description(),
-        }
-    }
-}
+impl error::Error for Sg3Error {}
 
 mod ffi {
     #![allow(non_upper_case_globals)]
@@ -76,6 +69,8 @@ mod ffi {
     #![allow(non_snake_case)]
     #![allow(improper_ctypes)]
     #![allow(dead_code)]
+    #![allow(clippy::useless_transmute)]
+    #![allow(clippy::ptr_offset_with_cast)]
 
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
@@ -177,8 +172,7 @@ pub fn inquiry(path: &Path) -> Sg3Result<StdInquiry> {
     }
 
     if inquiry.response_data_format() != 2 {
-        return Err(Sg3Error::Io(io::Error::new(
-            io::ErrorKind::Other,
+        return Err(Sg3Error::Io(io::Error::other(
             "Unknown/unsupported response data format",
         )));
     }
@@ -545,7 +539,7 @@ pub fn inquiry_vpd_83(path: &Path) -> Sg3Result<InquiryVpd83> {
     inquiry_vpd(path, 0x83, &mut inquiry)?;
     let res = vpd83(&inquiry)
         .to_result()
-        .map_err(|_| io::Error::new(io::ErrorKind::Other, "nom parse error"))?;
+        .map_err(|_| io::Error::other("nom parse error"))?;
     Ok(res)
 }
 
